@@ -575,8 +575,8 @@ class FPL:
         :type return_json: bool
         :rtype: :class:`ClassicLeague` or ``dict``
         """
-        if not logged_in(self.session):
-            raise Exception("User must be logged in.")
+        # if not logged_in(self.session):
+        #     raise Exception("User must be logged in.")
 
         url = API_URLS["league_classic"].format(league_id)
         league = await fetch(self.session, url)
@@ -601,8 +601,8 @@ class FPL:
         :type return_json: bool
         :rtype: :class:`H2HLeague` or ``dict``
         """
-        if not logged_in(self.session):
-            raise Exception("User must be logged in.")
+        # if not logged_in(self.session):
+        #     raise Exception("User must be logged in.")
 
         url = API_URLS["league_h2h"].format(league_id)
         league = await fetch(self.session, url)

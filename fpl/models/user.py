@@ -4,7 +4,7 @@ import json
 import aiohttp
 from urllib3.util import response
 
-from ..constants import API_URLS, MIN_GAMEWEEK, MAX_GAMEWEEK
+from ..constants import API_URLS, MIN_GAMEWEEK, MAX_GAMEWEEK, ENTRIES_PER_PAGE
 from ..utils import fetch, logged_in, post, get_headers
 
 is_c = "is_captain"
@@ -124,6 +124,36 @@ class User():
         self._session = session
         for k, v in user_information.items():
             setattr(self, k, v)
+
+    async def get_rank_in_classic_league(self, league_id, include_rank_sort=False):
+        #TODO
+        found_league = None
+        for league in self.leagues['classic']:
+            if league_id == league['id']:
+                found_league = league
+                break
+        if found_league is None:
+            raise Exception(
+                f'Entry {self.id} not in league {league_id}. The possible league ids are {entry_classic_league_ids}')
+        if not include_rank_sort:
+            return found_league['entry_rank']
+        
+        start_page = found_league['entry_rank'] // ENTRIES_PER_PAGE + 1
+        page_has_users = True
+        while page_has_users:
+            response = await fetch(
+                self._session, API_URLS['league_classic_standings'].format(league_id, start_page))
+            users = response['standings']['results']
+            if len(users) == 0:
+                page_has_users = False
+            
+            for user in users:
+                if user['entry'] == self.id:
+                    return user['rank'], user['rank_sort']
+            
+            start_page += 1
+            
+
 
     async def get_gameweek_history(self, gameweek=None):
         """Returns a list containing the gameweek history of the user.
@@ -358,6 +388,7 @@ class User():
                 return None
 
         return [history["entry_history"] for history in picks]
+
 
     async def get_team(self):
         """Returns a logged in user's current team. Requires the user to have
