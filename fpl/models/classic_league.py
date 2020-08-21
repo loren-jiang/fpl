@@ -49,46 +49,60 @@ class ClassicLeague():
 
         return standings["standings"]
 
-    async def get_standings_in_page_range(self, start_page, end_page):
-        """TODO
+    async def get_users_in_page_range(self, start_page, end_page):
+        """TODO write docstring
 
-        Args:
-            start_page ([type]): [description]
-            end_page ([type]): [description]
-
-        Returns:
-            [type]: [description]
+        :param start_page: [description]
+        :type start_page: [type]
+        :param end_page: [description]
+        :type end_page: [type]
+        :return: [description]
+        :rtype: [type]
         """
-        tasks = [asyncio.ensure_future(
-                     self.get_standings(page))
-                     for page in range(start_page, end_page + 1)]
-        agg_standings = await asyncio.gather(*tasks)
-
-        return agg_standings
+        
+        # tasks = [asyncio.ensure_future(self.get_standings(page)) for page in range(start_page, end_page + 1)]
+        # agg_standings = await asyncio.gather(*tasks)
+        if end_page < start_page:
+            raise Exception('end_page must be greater or equal to start_page')
+        users = []
+        page = start_page
+        while page <= end_page:
+            standings = await self.get_standings(page)
+            page_users = standings['results']
+            if not page_users:
+                break
+            users += page_users
+            page += 1
+        return users
 
     async def get_top_rank_users(self, n):
-        """TODO
+        """TODO write docstring
 
-        Args:
-            n ([type]): [description]
-
-        Returns:
-            [type]: [description]
+        :param n: [description]
+        :type n: [type]
+        :return: [description]
+        :rtype: [type]
         """
+        if n < 0:
+            raise Exception('n must be positive')
         start_page = 1
         end_page = n // ENTRIES_PER_PAGE + 1
-        standings = await self.get_standings_in_page_range(start_page, end_page)
-        users = []
-        for standing in standings:
-            users += standing['results']
+        users = await self.get_users_in_page_range(start_page, end_page)
         return users[:n]
 
     async def get_rank_neighbors(self, rank, rank_sort=None, delta=50):
-        """TODO
+        """TODO write docstring
 
-        Args:
-            rank ([type]): [description]
-            delta (int, optional): [description]. Defaults to 50.
+        :param rank: [description]
+        :type rank: [type]
+        :param rank_sort: [description], defaults to None
+        :type rank_sort: [type], optional
+        :param delta: [description], defaults to 50
+        :type delta: int, optional
+        :raises Exception: [description]
+        :raises Exception: [description]
+        :return: [description]
+        :rtype: [type]
         """
         
         rank_page_in_league = rank // ENTRIES_PER_PAGE + 1
@@ -96,46 +110,37 @@ class ClassicLeague():
         start_page = max(1, rank_page_in_league - page_delta)
 
         if rank_sort is None:
-            end_page = rank_page_in_league + page_delta
-            standings = await self.get_standings_in_page_range(start_page, end_page)
-            users = []
-            for standing in standings:
-                users += standing['results']
-            if len(users) == 0:
-                raise Exception('Rank exceeds number of users in league.')
-            rank_idx = next(i for i, user in enumerate(
-                users) if user['rank'] == rank)
-            return users[max(0, rank_idx-delta):min(len(users), rank_idx+delta+1)]
-        else:
-            if rank_sort < rank:
-                raise Exception('rank sort must be greater or equal to rank.')
-            all_users = []
-            i = 0
-            user_idx = 0
-            rank_found = False
-            while not rank_found:
-                standings = await self.get_standings(start_page)
-                users = standings['results']
-                all_users += users
-                if len(users) == 0:
+            rank_sort = rank
+        if rank_sort < rank:
+            raise Exception('rank sort must be greater or equal to rank.')
+        users = []
+        user_idx = i = 0
+        rank_found = False
+        while not rank_found:
+            standings = await self.get_standings(start_page)
+            page_users = standings['results']
+            if not page_users:
+                break
+            users += page_users
+            for user in page_users:                    
+                if user['rank'] == rank and user['rank_sort'] == rank_sort:
+                    user_idx = i
+                    rank_found = True
                     break
-                for user in users:                    
-                    if user['rank'] == rank and user['rank_sort'] == rank_sort:
-                        user_idx = i
-                        rank_found = True
-                        break
-                    i += 1
-                start_page += 1
-            
-            additional_pages = delta // ENTRIES_PER_PAGE + 1
-            for page in range(start_page, start_page + additional_pages):
-                standings = await self.get_standings(start_page)
-                users = standings['results']
-                all_users += users
-                if len(users) == 0:
-                    break
-            return all_users[max(0, user_idx - delta):min(len(all_users), user_idx+delta)]
+                i += 1
+            start_page += 1
+        
+        additional_pages = delta // ENTRIES_PER_PAGE + 1
+        for page in range(start_page, start_page + additional_pages):
+            standings = await self.get_standings(start_page)
+            page_users = standings['results']
+            if not page_users:
+                break
+            users += page_users
+        return users[max(0, user_idx - delta):min(len(users), user_idx+delta)]
 
 
     def __str__(self):
         return f"{self.league['name']} - {self.league['id']}"
+
+

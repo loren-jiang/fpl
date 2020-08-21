@@ -57,10 +57,14 @@ class FPL:
             except (KeyError, TypeError):
                 pass
             setattr(self, k, v)
-        setattr(self,
-                "current_gameweek",
-                next(event for event in static["events"]
-                     if event["is_current"])["id"])
+
+        try:
+            current_gameweek = next(event for event in static["events"]
+                                    if event["is_current"])["id"]
+        except StopIteration:
+            current_gameweek = None
+
+        setattr(self, "current_gameweek", current_gameweek)
 
     async def get_user(self, user_id=None, return_json=False):
         """Returns the user with the given ``user_id``.
@@ -291,8 +295,8 @@ class FPL:
 
         return players
 
-    async def search_players(self, player_name, num_players=1, 
-                            include_summary=False, return_json=False):
+    async def search_players(self, player_name, num_players=1,
+                             include_summary=False, return_json=False):
         """Returns the player(s) given input search term by using Levenshtein distance, 
         or the mininum number of edits to turn one string into the other. Specifically, 
         the distance is defined as the minimum of Levenshtein distances from search string
@@ -306,7 +310,7 @@ class FPL:
             ``dict``s, if ``False`` returns a list of  :class:`Player`
             objects. Defaults to ``False``. 
         """
-        
+
         players = getattr(self, "elements")
         N = len(players)
         search_term = player_name.lower()
@@ -316,17 +320,18 @@ class FPL:
         player_ids = [0]*N
         for i, player in enumerate(players.values()):
             player_ids[i] = player['id']
-            full_name = unidecode(player['first_name'] + ' ' + player['second_name']).lower()
+            full_name = unidecode(
+                player['first_name'] + ' ' + player['second_name']).lower()
             web_name = unidecode(player['web_name']).lower()
-            ed = min(levenshtein_distance(full_name, player_name), 
-                        levenshtein_distance(web_name, player_name))
+            ed = min(levenshtein_distance(full_name, player_name),
+                     levenshtein_distance(web_name, player_name))
 
             if ed < min_ed:
                 min_ed = ed
                 min_id = player['id']
-            
+
             eds[player['id']] = ed
-        
+
         player_ids.sort(key=lambda player_id: eds[player_id])
 
         players_list = []
@@ -337,14 +342,13 @@ class FPL:
                 player_summary = await self.get_player_summary(
                     player["id"], return_json=True)
                 player.update(player_summary)
-            
+
             players_list.append(player)
 
         if return_json:
             return players_list
         else:
             return [Player(p, self.session) for p in players_list]
-
 
     async def get_fixture(self, fixture_id, return_json=False):
         """Returns the fixture with the given ``fixture_id``.

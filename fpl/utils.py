@@ -1,19 +1,29 @@
 import asyncio
+import random
+import math
+
 from functools import update_wrapper
 
 from fpl.constants import API_URLS
 
-headers = {"User-Agent": "https://github.com/amosbastian/fpl"}
+headers = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_4) AppleWebKit/537.13 (KHTML, like Gecko) Chrome/24.0.1290.1 Safari/537.13"}
 
 
 async def fetch(session, url):
-    while True:
-        try:
-            async with session.get(url, headers=headers) as response:
-                assert response.status == 200
-                return await response.json()
-        except Exception:
-            pass
+    async with session.get(url, headers=headers) as response:
+        assert response.status == 200
+        return await response.json()
+
+
+# async def fetch(session, url):
+#     while True:
+#         try:
+#             async with session.get(url, headers=headers) as response:
+#                 assert response.status == 200
+#                 return await response.json()
+#         except Exception as e:
+#             print(e)
 
 
 async def post(session, url, payload, headers):
@@ -172,6 +182,7 @@ def get_headers(referer):
         "Referer": referer
     }
 
+
 def levenshtein_distance(s1, s2):
     """Returns Levenshtein distance of two strings.
     """
@@ -185,10 +196,74 @@ def levenshtein_distance(s1, s2):
             if c1 == c2:
                 distances_.append(distances[i1])
             else:
-                distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+                distances_.append(
+                    1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
         distances = distances_
     return distances[-1]
+
 
 async def get_current_user(session):
     user = await fetch(session, API_URLS["me"])
     return user
+
+
+def create_bins(lower_bound, width, quantity):
+    """ create_bins returns an equal-width (distance) partitioning. 
+        It returns an ascending list of tuples, representing the intervals.
+        A tuple bins[i], i.e. (bins[i][0], bins[i][1])  with i > 0 
+        and i < quantity, satisfies the following conditions:
+            (1) bins[i][0] + width == bins[i][1]
+            (2) bins[i-1][0] + width == bins[i][0] and
+                bins[i-1][1] + width == bins[i][1]
+    """
+
+    bins = []
+    for low in range(lower_bound,
+                     lower_bound + quantity*width + 1, width):
+        bins.append((low, low+width))
+    return bins
+
+# r is a tuple representing start and end
+# num is the number of samples
+
+
+def random_sample_range(r, num):
+    ret = random.sample(list(range(r[0], r[1], 1)), num)
+    ret.sort()
+    return ret
+
+
+def get_page_num(x, k=50):
+    return math.ceil(x/k)
+
+
+def add_bool_arg(parser, name, default=False):
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument('--' + name, dest=name, action='store_true')
+    group.add_argument('--no-' + name, dest=name, action='store_false')
+    parser.set_defaults(**{name: default})
+
+
+def get_map_of_list(lst, k_fxn, v_fxn):
+    mapped_lst = {}
+    for elem in lst:
+        key = k_fxn(elem)
+        if key not in mapped_lst:
+            mapped_lst[key] = v_fxn(elem)
+        else:
+            raise Exception(f'Key function returned a non-unique key {key}. ')
+    return mapped_lst
+
+
+def get_bin_map(bins, bin_sample_size):
+    entry_samples = [0] * len(bins)
+    for i, x in enumerate(bins):
+        samps = random_sample_range(x, bin_sample_size)
+        entry_samples[i] = samps
+
+    return entry_samples
+
+
+def get_sampled_bins(bin_size, num_bins, bin_sample_size):
+    bins = create_bins(0, bin_size, num_bins - 1)
+    return get_bin_map(bins, bin_sample_size)

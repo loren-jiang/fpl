@@ -126,7 +126,16 @@ class User():
             setattr(self, k, v)
 
     async def get_rank_in_classic_league(self, league_id, include_rank_sort=False):
-        #TODO
+        """Returns `rank` of user in league; if include_rank_sort is True, then returns `rank` and `rank_sort`
+
+        :param league_id: id of league
+        :type league_id: int
+        :param include_rank_sort: whether or not to include rank_sort, defaults to False
+        :type include_rank_sort: bool, optional
+        :raises Exception: if league_id is not in user's leagues
+        :return: `rank` or `rank` and `rank_sort`
+        :rtype: int if include_rank_sort is False, otherwis tuple
+        """
         found_league = None
         for league in self.leagues['classic']:
             if league_id == league['id']:
@@ -144,7 +153,8 @@ class User():
             response = await fetch(
                 self._session, API_URLS['league_classic_standings'].format(league_id, start_page))
             users = response['standings']['results']
-            if len(users) == 0:
+            
+            if not users:
                 page_has_users = False
             
             for user in users:

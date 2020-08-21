@@ -1,18 +1,18 @@
 API_BASE_URL = "https://fantasy.premierleague.com/api/"
 
 API_URLS = {
-    "dynamic": "{}bootstrap-dynamic/".format(API_BASE_URL),
+    "dynamic": "{}bootstrap-dynamic/".format(API_BASE_URL), #doesnt work
     "fixtures": "{}fixtures/".format(API_BASE_URL),
-    "gameweeks": "{}events/".format(API_BASE_URL),
+    "gameweeks": "{}events/".format(API_BASE_URL),  # doesnt work
     "gameweek_fixtures": "{}fixtures/?event={{}}".format(API_BASE_URL),
     "gameweek_live": "{}event/{{}}/live".format(API_BASE_URL),
     "league_classic": "{}leagues-classic/{{}}/standings/".format(API_BASE_URL),
     "league_classic_standings" : "{}leagues-classic/{{}}/standings/?page_standings={{}}".format(API_BASE_URL),
     "league_h2h": "{}leagues-h2h/{{}}/standings/".format(API_BASE_URL),
     "league_h2h_fixtures": "{}leagues-h2h-matches/league/{{}}/?{{}}page={{}}".format(API_BASE_URL),
-    "players": "{}elements/".format(API_BASE_URL),
+    "players": "{}elements/".format(API_BASE_URL), # doesnt work
     "player": "{}element-summary/{{}}/".format(API_BASE_URL),
-    "settings": "{}game-settings/".format(API_BASE_URL),
+    "settings": "{}game-settings/".format(API_BASE_URL), # doesnt work
     "static": "{}bootstrap-static/".format(API_BASE_URL),
     "teams": "{}teams/".format(API_BASE_URL),
     "transfers": "{}transfers/".format(API_BASE_URL),
