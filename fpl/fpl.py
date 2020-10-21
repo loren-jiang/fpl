@@ -49,8 +49,9 @@ class FPL:
     def __init__(self, session):
         self.session = session
 
-        # TODO: use aiohttp instead
-        static = requests.get(API_URLS["static"]).json()
+        response = requests.get(API_URLS["static"])
+        response.raise_for_status()
+        static = response.json()
         for k, v in static.items():
             try:
                 v = {w["id"]: w for w in v}
@@ -58,13 +59,20 @@ class FPL:
                 pass
             setattr(self, k, v)
 
-        try:
-            current_gameweek = next(event for event in static["events"]
-                                    if event["is_current"])["id"]
-        except StopIteration:
-            current_gameweek = None
+        current_gameweek = 0
+        for event in static["events"]:
+            if event["is_current"]:
+                current_gameweek = event["id"]
 
-        setattr(self, "current_gameweek", current_gameweek)
+        self.current_gameweek = current_gameweek
+
+    async def get_bs_static(self):
+        """Returns the endpoint from bootstrap-static as dictionary
+        https://fantasy.premierleague.com/api/bootstrap-static/
+
+        :rtype: :class: `dict`
+        """
+        return await fetch(self.session, API_URLS["static"])
 
     async def get_user(self, user_id=None, return_json=False):
         """Returns the user with the given ``user_id``.
@@ -427,30 +435,30 @@ class FPL:
 
         return [Fixture(fixture) for fixture in fixtures]
 
-    async def get_fixtures_by_gameweek(self, gameweek, return_json=False):
-        """Returns a list of all fixtures of the given ``gameweek``.
+    # async def get_fixtures_by_gameweek(self, gameweek, return_json=False):
+    #     """Returns a list of all fixtures of the given ``gameweek``.
 
-        Information is taken from e.g.:
-            https://fantasy.premierleague.com/api/fixtures/
-            https://fantasy.premierleague.com/api/fixtures/?event=1
+    #     Information is taken from e.g.:
+    #         https://fantasy.premierleague.com/api/fixtures/
+    #         https://fantasy.premierleague.com/api/fixtures/?event=1
 
-        :param gameweek: A gameweek.
-        :type gameweek: string or int
-        :param return_json: (optional) Boolean. If ``True`` returns a list of
-            ``dict``s, if ``False`` returns a list of  :class:`Player`
-            objects. Defaults to ``False``.
-        :type return_json: bool
-        :rtype: list
-        """
-        fixtures = await fetch(self.session,
-                               API_URLS["gameweek_fixtures"].format(gameweek))
+    #     :param gameweek: A gameweek.
+    #     :type gameweek: string or int
+    #     :param return_json: (optional) Boolean. If ``True`` returns a list of
+    #         ``dict``s, if ``False`` returns a list of  :class:`Player`
+    #         objects. Defaults to ``False``.
+    #     :type return_json: bool
+    #     :rtype: list
+    #     """
+    #     fixtures = await fetch(self.session,
+    #                            API_URLS["gameweek_fixtures"].format(gameweek))
 
-        if return_json:
-            return fixtures
+    #     if return_json:
+    #         return fixtures
 
-        return [Fixture(fixture) for fixture in fixtures]
+    #     return [Fixture(fixture) for fixture in fixtures]
 
-    async def get_fixtures(self, return_json=False):
+    async def get_fixtures(self, return_json=False, gameweek=''):
         """Returns a list of *all* fixtures.
 
         Information is taken from e.g.:
@@ -461,17 +469,14 @@ class FPL:
             ``dict``s, if ``False`` returns a list of  :class:`Fixture`
             objects. Defaults to ``False``.
         :type return_json: bool
+        :param gameweek: (optional) Int. If gameweek is provided, returns just that 
+        gameweek's fixtures. Defaults to ``''``.
+        :type gameweek: int or str
         :rtype: list
         """
-        gameweeks = range(1, 39)
-        tasks = [asyncio.ensure_future(
-                 fetch(self.session,
-                       API_URLS["gameweek_fixtures"].format(gameweek)))
-                 for gameweek in gameweeks]
-
-        gameweek_fixtures = await asyncio.gather(*tasks)
-        fixtures = list(itertools.chain(*gameweek_fixtures))
-
+        # if 'gameweek' is empty string, then all fixtures are retrieved
+        fixtures = await fetch(self.session,
+                                   API_URLS["gameweek_fixtures"].format(gameweek))
         if return_json:
             return fixtures
 
@@ -565,8 +570,7 @@ class FPL:
         return gameweeks
 
     async def get_classic_league(self, league_id, return_json=False):
-        """Returns the classic league with the given ``league_id``. Requires
-        the user to have logged in using ``fpl.login()``.
+        """Returns the classic league with the given ``league_id``.
 
         Information is taken from e.g.:
             https://fantasy.premierleague.com/api/leagues-classic/967/standings/
@@ -588,7 +592,7 @@ class FPL:
         if return_json:
             return league
 
-        return ClassicLeague(league, session=self.session)
+        return ClassicLeague(league, session=self.session, current_gameweek=self.current_gameweek)
 
     async def get_h2h_league(self, league_id, return_json=False):
         """Returns a `H2HLeague` object with the given `league_id`. Requires

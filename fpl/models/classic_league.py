@@ -2,6 +2,7 @@ import asyncio
 from ..constants import API_URLS, ENTRIES_PER_PAGE
 from ..utils import fetch
 
+
 class ClassicLeague():
     """A class representing a classic league in the Fantasy Premier League.
 
@@ -21,9 +22,10 @@ class ClassicLeague():
       >>> asyncio.run(main())
       Official /r/FantasyPL Classic League - 1137
     """
-    def __init__(self, league_information, session):
-        self._session = session
 
+    def __init__(self, league_information, session, current_gameweek=1):
+        self._session = session
+        self.current_gameweek = current_gameweek
         for k, v in league_information.items():
             setattr(self, k, v)
 
@@ -42,24 +44,24 @@ class ClassicLeague():
             return self.standings
 
         url = "{}?page_new_entries={}&page_standings={}&phase={}".format(
-                API_URLS["league_classic"].format(self.league["id"]),
-                page_new_entries, page, phase)
+            API_URLS["league_classic"].format(self.league["id"]),
+            page_new_entries, page, phase)
         standings = await fetch(self._session, url)
         self.standings = standings["standings"]
 
         return standings["standings"]
 
     async def get_users_in_page_range(self, start_page, end_page):
-        """TODO write docstring
+        """Get users from 'start_page' to 'end_page' inclusive in the league standings
 
-        :param start_page: [description]
-        :type start_page: [type]
-        :param end_page: [description]
-        :type end_page: [type]
-        :return: [description]
-        :rtype: [type]
+        :param start_page: Start page, inclusive
+        :type start_page: int
+        :param end_page: End page, inclusive
+        :type end_page: int
+        :return: List of user dicts from league standings
+        :rtype: list
         """
-        
+
         # tasks = [asyncio.ensure_future(self.get_standings(page)) for page in range(start_page, end_page + 1)]
         # agg_standings = await asyncio.gather(*tasks)
         if end_page < start_page:
@@ -76,12 +78,12 @@ class ClassicLeague():
         return users
 
     async def get_top_rank_users(self, n):
-        """TODO write docstring
+        """Get top 'n' ranked users in the league
 
-        :param n: [description]
-        :type n: [type]
-        :return: [description]
-        :rtype: [type]
+        :param n: Number of users to take
+        :type n: int
+        :return: List of user as dicts
+        :rtype: list
         """
         if n < 0:
             raise Exception('n must be positive')
@@ -91,20 +93,22 @@ class ClassicLeague():
         return users[:n]
 
     async def get_rank_neighbors(self, rank, rank_sort=None, delta=50):
-        """TODO write docstring
+        """Get the neighbors of specified rank within an inclusive delta. For example, 
+        if args are {'rank': 100, 'delta': 50}, then gets users 50 above and 50 below, inclusive.
+        If 'rank_sort' is 'True', then the entry with the given 'rank_sort' value equal
+        to 'rank' is found and then delta is taken (this occurs because how ties are broken).
 
-        :param rank: [description]
-        :type rank: [type]
-        :param rank_sort: [description], defaults to None
-        :type rank_sort: [type], optional
-        :param delta: [description], defaults to 50
+        :param rank: Rank of entry to find neighbors from
+        :type rank: int
+        :param rank_sort: , defaults to None
+        :type rank_sort: None or bool, optional
+        :param delta: Number of users above and below to take, defaults to 50
         :type delta: int, optional
-        :raises Exception: [description]
-        :raises Exception: [description]
-        :return: [description]
-        :rtype: [type]
+        :raises Exception: Rank sort must be greater or equal to rank.
+        :return: List of user dicts
+        :rtype: list
         """
-        
+
         rank_page_in_league = rank // ENTRIES_PER_PAGE + 1
         page_delta = delta // ENTRIES_PER_PAGE + 1
         start_page = max(1, rank_page_in_league - page_delta)
@@ -122,14 +126,14 @@ class ClassicLeague():
             if not page_users:
                 break
             users += page_users
-            for user in page_users:                    
+            for user in page_users:
                 if user['rank'] == rank and user['rank_sort'] == rank_sort:
                     user_idx = i
                     rank_found = True
                     break
                 i += 1
             start_page += 1
-        
+
         additional_pages = delta // ENTRIES_PER_PAGE + 1
         for page in range(start_page, start_page + additional_pages):
             standings = await self.get_standings(start_page)
@@ -137,10 +141,8 @@ class ClassicLeague():
             if not page_users:
                 break
             users += page_users
-        return users[max(0, user_idx - delta):min(len(users), user_idx+delta)]
-
+        return users[max(0, user_idx - delta):
+                     min(len(users), user_idx + delta + 1)]
 
     def __str__(self):
         return f"{self.league['name']} - {self.league['id']}"
-
-

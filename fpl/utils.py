@@ -4,14 +4,18 @@ import math
 
 from functools import update_wrapper
 
-from fpl.constants import API_URLS
+from fpl.constants import API_URLS, SEASON_MAP
+from datetime import datetime, timezone
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_4) AppleWebKit/537.13 (KHTML, like Gecko) Chrome/24.0.1290.1 Safari/537.13"}
 
 
-async def fetch(session, url):
-    async with session.get(url, headers=headers) as response:
+async def fetch(session, url, get_kwargs={}):
+    if not get_kwargs.get('headers'):
+        get_kwargs['headers'] = headers
+
+    async with session.get(url, **get_kwargs) as response:
         assert response.status == 200
         return await response.json()
 
@@ -59,6 +63,7 @@ async def get_current_gameweek(session):
 
 
 def team_converter(team_id):
+    # TODO repopulate with new data or remove
     """Converts a team's ID to their actual name."""
     team_map = {
         1: "Arsenal",
@@ -87,6 +92,7 @@ def team_converter(team_id):
 
 
 def short_name_converter(team_id):
+    # TODO repopulate with new data or remove
     """Converts a team's ID to their short name."""
     short_name_map = {
         1: "ARS",
@@ -267,3 +273,20 @@ def get_bin_map(bins, bin_sample_size):
 def get_sampled_bins(bin_size, num_bins, bin_sample_size):
     bins = create_bins(0, bin_size, num_bins - 1)
     return get_bin_map(bins, bin_sample_size)
+
+
+def get_current_season(date_str):
+    """Returns current season from given date string formated as 'mm-dd-yyyy'; 
+    returns 'None' if no season found
+
+    Args:
+        date_str (string): Input date string formated as 'mm-dd-yyyy'
+    """
+    format = '%m-%d-%Y'
+    date_formatted = datetime.strptime(date_str, format)
+    for k, v in SEASON_MAP.items():
+        start_date, end_date = datetime.strptime(
+            v[0], format), datetime.strptime(v[1], format)
+        if start_date <= date_formatted <= end_date:
+            return k
+    return None
